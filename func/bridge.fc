@@ -1,0 +1,51 @@
+#include "errors.fc";
+#include "utils.fc";
+
+(int, int) parse_std_addr(slice s) asm "REWRITESTDADDR";
+
+const int op::unlock_ton = 0;
+const int op::lock_ton = 1;
+
+const int event_id::lock_ton = 101;
+const int event_id::unlock_ton = 102;
+
+(slice, (int, int)) ~load_body_header(slice s) inline {
+    int op = s~load_uint(32);
+    int query_id = s~load_uint(64);
+    return (s, (op, query_id));
+}
+
+() recv_internal(int msg_value, cell in_msg_full, slice in_msg_body) impure {
+    var cs = in_msg_full.begin_parse();  
+    var flags = cs~load_uint(4); ;; int_msg_info$0 ihr_disabled:Bool bounce:Bool bounced:Bool
+
+    if (flags & 1) {
+        return (); ;; ignore all bounced messages
+    }
+
+    throw_if(error::empty_msg_body, in_msg_body.slice_empty?());
+
+    (int op, int query_id) = in_msg_body~load_body_header();
+
+    if (op == op::lock_ton) {
+        int amount = in_msg_body~load_coins();
+        slice from_address = in_msg_body~load_msg_addr();
+        slice response_address = in_msg_body~load_msg_addr();
+        int destination_address = in_msg_body~load_uint(160);
+        in_msg_body.end_parse();
+
+        (_, int from_addr_hash) = parse_std_addr(from_address);
+
+        ;; TODO: implement wallet and ton lock
+
+        emit_log(event_id::lock_ton,
+            begin_cell()
+                .store_uint(destination_address, 160)
+                .store_uint(amount, 128)
+                .store_uint(from_addr_hash, 256)
+            .end_cell()
+        );
+    } elseif (op == op::unlock_ton) {
+        ;; TODO: implement ton unlock
+    }
+}
