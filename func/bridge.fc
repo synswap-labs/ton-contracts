@@ -3,17 +3,8 @@
 
 (int, int) parse_std_addr(slice s) asm "REWRITESTDADDR";
 
-const int op::unlock_ton = 0;
-const int op::lock_ton = 1;
-
 const int event_id::lock_ton = 101;
 const int event_id::unlock_ton = 102;
-
-(slice, (int, int)) ~load_body_header(slice s) inline {
-    int op = s~load_uint(32);
-    int query_id = s~load_uint(64);
-    return (s, (op, query_id));
-}
 
 () recv_internal(int msg_value, cell in_msg_full, slice in_msg_body) impure {
     var cs = in_msg_full.begin_parse();  

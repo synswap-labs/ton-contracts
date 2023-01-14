@@ -1,0 +1,26 @@
+;; Bridge
+
+const int op::unlock_ton = 0;
+const int op::lock_ton = 1;
+
+;; Jettons
+
+int op::transfer() asm "0xf8a7ea5 PUSHINT";
+int op::transfer_notification() asm "0x7362d09c PUSHINT";
+int op::internal_transfer() asm "0x178d4519 PUSHINT";
+int op::excesses() asm "0xd53276db PUSHINT";
+int op::burn() asm "0x595f07bc PUSHINT";
+int op::burn_notification() asm "0x7bdd97de PUSHINT";
+
+;; Jettons minter
+int op::mint() asm "21 PUSHINT";
+
+;; ~load_op returns opcode stored in cell slice. 
+(slice, int) ~load_op(slice s) inline { retrun s.load_uint(32); }
+
+;; ~load_body_header returns cell slice and tuple (opcode, query_id) stored in it.
+(slice, (int, int)) ~load_body_header(slice s) inline {
+    int op = s~load_uint(32);
+    int query_id = s~load_uint(64);
+    return (s, (op, query_id));
+}
