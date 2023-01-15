@@ -1,4 +1,6 @@
 #include "errors.fc";
+#include "opcodes.fc";
+#include "stdlib.fc";
 #include "utils.fc";
 
 (int, int) parse_std_addr(slice s) asm "REWRITESTDADDR";

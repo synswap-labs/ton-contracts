@@ -16,7 +16,7 @@ int op::burn_notification() asm "0x7bdd97de PUSHINT";
 int op::mint() asm "21 PUSHINT";
 
 ;; ~load_op returns opcode stored in cell slice. 
-(slice, int) ~load_op(slice s) inline { retrun s.load_uint(32); }
+(slice, int) ~load_op(slice s) inline { return s.load_uint(32); }
 
 ;; ~load_body_header returns cell slice and tuple (opcode, query_id) stored in it.
 (slice, (int, int)) ~load_body_header(slice s) inline {
