@@ -1,7 +1,7 @@
 ;; Bridge
 
-const int op::unlock_ton = 0;
 const int op::lock_ton = 1;
+const int op::unlock_ton = 2;
 
 ;; Jettons
 
@@ -13,6 +13,7 @@ int op::burn() asm "0x595f07bc PUSHINT";
 int op::burn_notification() asm "0x7bdd97de PUSHINT";
 
 ;; Jettons minter
+
 int op::mint() asm "21 PUSHINT";
 
 ;; ~load_op returns opcode stored in cell slice. 

@@ -1,13 +1,17 @@
-() emit_log (int event_id, cell data) impure inline {
+() emit_log (int event_id, cell data, int query_id) impure inline {
     var msg = begin_cell()
-        .store_uint (12, 4)         ;; ext_out_msg_info$11 src:MsgAddressInt ()
-        .store_uint (1, 2)          ;; addr_extern$01
-        .store_uint (256, 9)        ;; len:(## 9)
+        .store_uint(12, 4)         ;; ext_out_msg_info$11 src:MsgAddressInt ()
+        .store_uint(1, 2)          ;; addr_extern$01
+        .store_uint(256, 9)        ;; len:(## 9)
         .store_uint(event_id, 256); ;; external_address:(bits len)
 
-    
-    msg = msg.store_uint(1, 64 + 32 + 2) ;; created_lt, created_at, init:Maybe, body:Either
-                .store_ref(data);
+    if(null?(data)) {
+        msg = msg.store_uint(0, 64 + 32 + 2) ;; created_lt, created_at, init:Maybe, body:Either
+                 .store_uint(query_id, 64);
+    } else {
+        msg = msg.store_uint(1, 64 + 32 + 2) ;; created_lt, created_at, init:Maybe, body:Either
+                 .store_ref(data);
+    }
 
-    send_raw_message(msg.end_cell(), 0);
+    send_raw_message(msg.end_cell(), 1);
 }
