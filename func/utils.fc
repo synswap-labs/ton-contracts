@@ -13,5 +13,5 @@
                  .store_ref(data);
     }
 
-    send_raw_message(msg.end_cell(), 1);
+    send_raw_message(msg.end_cell(), 0);
 }
