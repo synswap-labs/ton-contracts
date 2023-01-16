@@ -1,6 +1,6 @@
-import { beginCell, toNano } from "ton";
+import { Address, beginCell, toNano } from "ton";
 import { ContractExecutor, ContractSystem, Treasure } from "ton-emulator";
-import { createBridge } from "./helpers";
+import { createBridge, getBalance } from "./helpers";
 import { expect } from "chai";
 
 describe("Test wrapping bridge", () => {
@@ -17,6 +17,7 @@ describe("Test wrapping bridge", () => {
   it("should lock TONs and emit log message", async () => {
     const destinationAddress = 0x142d6db735cdb50bfc6ec65f94830320c6c7a245n;
     const destinationChainId = 1;
+    const value = toNano(2);
 
     const body = beginCell()
       .storeUint(destinationAddress, 160)
@@ -25,9 +26,9 @@ describe("Test wrapping bridge", () => {
       .beginParse();
 
     await treasure.send({
-      sendMode: 0,
+      sendMode: 1,
       to: bridge.address,
-      value: toNano(1),
+      value: value,
       body: beginCell()
         .storeUint(1, 32) // op
         .storeUint(111, 64) // query id
@@ -35,17 +36,22 @@ describe("Test wrapping bridge", () => {
         .endCell(),
       bounce: true,
     });
-
     let txs = await system.run();
 
     let resp = txs[txs.length - 1].outMessages;
-
     let cs = resp.get(0)?.body.beginParse()!;
 
     const logDestinationAddress = cs.loadUintBig(160).toString(16);
     const logDestinationChainId = cs.loadUint(8);
+    const logFromAddressHash = cs.loadUintBig(256).toString(16);
+    const logFromAddress = Address.parseRaw(
+      bridge.address.workChain + ":" + logFromAddressHash
+    );
+    const logMsgValue = cs.loadUintBig(64);
 
     expect(logDestinationAddress).to.be.equal(destinationAddress.toString(16));
     expect(logDestinationChainId).to.be.equal(destinationChainId);
+    expect(logFromAddress.equals(treasure.address)).to.be.true;
+    expect(logMsgValue).to.be.equal(value);
   });
 });
