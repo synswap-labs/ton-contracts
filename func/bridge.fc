@@ -34,6 +34,7 @@ const int event_id::unlock_ton = 102;
                 .store_uint(destination_address, 160)
                 .store_uint(destination_chain_id, 8)
                 .store_uint(from_address_hash, 256)
+                .store_uint(msg_value, 64)
             .end_cell(),
             null()
         );
