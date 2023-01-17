@@ -1,17 +1,20 @@
-import { Address, beginCell, toNano } from "ton";
+import { Address, beginCell, Slice, toNano } from "ton";
 import { ContractExecutor, ContractSystem, Treasure } from "ton-emulator";
 import { createBridge, getBalance } from "./helpers";
 import { expect } from "chai";
+import { inspect } from "util";
 
 describe("Test wrapping bridge", () => {
   let system: ContractSystem;
   let treasure: Treasure;
+  let oracleTreasure: Treasure;
   let bridge: ContractExecutor;
 
   before(async () => {
     system = await ContractSystem.create();
     treasure = system.treasure("random-treasure");
-    bridge = await createBridge(system, treasure);
+    oracleTreasure = system.treasure("oracle-treasure");
+    bridge = await createBridge(system, oracleTreasure);
   });
 
   it("should lock TONs and emit log message", async () => {
@@ -53,5 +56,45 @@ describe("Test wrapping bridge", () => {
     expect(logDestinationChainId).to.be.equal(destinationChainId);
     expect(logFromAddress.equals(treasure.address)).to.be.true;
     expect(logMsgValue).to.be.equal(value);
+  });
+
+  it("should unlock TONs to destination address", async () => {
+    const destinationAddress = treasure.address;
+    const value = toNano(2);
+    const oldBalance = await getBalance(system, treasure);
+    const feeValue = 10000000n;
+
+    const body = beginCell()
+      .storeAddress(destinationAddress)
+      .storeUint(value, 64)
+      .endCell()
+      .beginParse();
+
+    await oracleTreasure.send({
+      sendMode: 1,
+      to: bridge.address,
+      value: feeValue,
+      body: beginCell()
+        .storeUint(2, 32) // op
+        .storeUint(111, 64) // query id
+        .storeSlice(body)
+        .endCell(),
+      bounce: true,
+    });
+    let txs = await system.run();
+
+    expect(
+      txs.filter(
+        (tx) =>
+          (tx.description as any).aborted !== undefined &&
+          (tx.description as any).aborted === true
+      ),
+      "Some of transactions aborted"
+    ).to.be.empty;
+
+    let newBalance = await getBalance(system, treasure);
+    let fees = txs[txs.length - 1].totalFees.coins;
+
+    expect(newBalance).to.be.equal(oldBalance + (value - fees));
   });
 });

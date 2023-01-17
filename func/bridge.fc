@@ -3,10 +3,32 @@
 #include "stdlib.fc";
 #include "utils.fc";
 
-(int, int) parse_std_addr(slice s) asm "REWRITESTDADDR";
-
 const int event_id::lock_ton = 101;
 const int event_id::unlock_ton = 102;
+
+;; load_data returns data from c4 cell.
+cell load_data() inline_ref {
+    slice data = get_data().begin_parse();
+
+    return (
+        data~load_dict()   ;; oracles
+    );
+}
+
+() save_data(cell oracles) impure inline_ref {
+    cell data = begin_cell()
+                    .store_dict(oracles)
+                .end_cell();
+
+    set_data(data);
+}
+
+;; get_oracles returns a dict of oracles stored in c4 cell.
+;; key: uint256 (public key), value: (key: uint256 (chain id), value: uint256 (public key for chain))
+cell get_oracles() inline {
+    cell oracles = load_data();
+    return oracles;
+}
 
 () recv_internal(int msg_value, cell in_msg_full, slice in_msg_body) impure {
     var cs = in_msg_full.begin_parse();  
@@ -17,6 +39,7 @@ const int event_id::unlock_ton = 102;
     }
 
     slice sender_address = cs~load_msg_addr();
+    (_, int sender_address_hash) = parse_std_addr(sender_address);
 
     throw_if(error::empty_msg_body, in_msg_body.slice_empty?());
 
@@ -26,19 +49,32 @@ const int event_id::unlock_ton = 102;
         int destination_address = in_msg_body~load_uint(160);
         int destination_chain_id = in_msg_body~load_uint(8);
 
-        (_, int from_address_hash) = parse_std_addr(sender_address);
-
         emit_log(
             event_id::lock_ton,
             begin_cell()
                 .store_uint(destination_address, 160)
                 .store_uint(destination_chain_id, 8)
-                .store_uint(from_address_hash, 256)
+                .store_uint(sender_address_hash, 256)
                 .store_uint(msg_value, 64)
             .end_cell(),
             null()
         );
     } elseif (op == op::unlock_ton) {
-        ;; TODO: implement ton unlock
+        cell oracles = get_oracles();
+        (_, int is_oracle) = oracles.udict_get?(256, sender_address_hash);
+
+        throw_if(error::not_an_oracle, ~ is_oracle);
+
+        slice to_address = in_msg_body~load_msg_addr();
+        int unlock_value = in_msg_body~load_uint(64);
+
+        cell transfer_msg = begin_cell()
+                                .store_uint(0x18, 6)
+                                .store_slice(to_address)
+                                .store_coins(unlock_value)
+                                .store_uint(0, 1 + 4 + 4 + 64 + 32 + 1 + 1)
+                            .end_cell();
+
+        send_raw_message(transfer_msg, 0);
     }
 }
