@@ -15,6 +15,8 @@ cell load_data() inline_ref {
     );
 }
 
+;; save_data saves data to c4 cell.
+;; oracles:^Cell - dict of oracles.
 () save_data(cell oracles) impure inline_ref {
     cell data = begin_cell()
                     .store_dict(oracles)
@@ -75,6 +77,8 @@ cell get_oracles() inline {
                                 .store_uint(0, 1 + 4 + 4 + 64 + 32 + 1 + 1)
                             .end_cell();
 
+        ;; send_mode - 0 to pay fee with the unlocked coins.
+        ;; this will reduce the amount of fees paid by the oracle.
         send_raw_message(transfer_msg, 0);
     }
 }
