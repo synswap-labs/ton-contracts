@@ -33,7 +33,7 @@ describe("Test wrapped swap", () => {
 
     const body = beginCell()
       .storeUint(destinationAddress, 160)
-      .storeUint(destinationChainId, 8)
+      .storeUint(destinationChainId, 32)
       .endCell()
       .beginParse();
 
@@ -54,7 +54,7 @@ describe("Test wrapped swap", () => {
     let cs = resp.get(0)?.body.beginParse()!;
 
     const logDestinationAddress = cs.loadUintBig(160).toString(16);
-    const logDestinationChainId = cs.loadUint(8);
+    const logDestinationChainId = cs.loadUint(32);
     const logFromAddressHash = cs.loadUintBig(256).toString(16);
     const logFromAddress = Address.parseRaw(
       bridge.address.workChain + ":" + logFromAddressHash

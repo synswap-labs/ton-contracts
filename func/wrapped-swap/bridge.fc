@@ -4,7 +4,7 @@
 #include "utils.fc";
 
 const int event_id::lock_ton = 101;
-const int event_id::unlock_ton = 102;
+const int event_id::burn_jetton = 102;
 
 ;; load_data returns data from c4 cell.
 cell load_data() inline_ref {
@@ -49,13 +49,13 @@ cell get_oracles() inline {
 
     if (op == op::lock_ton) {
         int destination_address = in_msg_body~load_uint(160);
-        int destination_chain_id = in_msg_body~load_uint(8);
+        int destination_chain_id = in_msg_body~load_uint(32);
 
         emit_log(
             event_id::lock_ton,
             begin_cell()
                 .store_uint(destination_address, 160)
-                .store_uint(destination_chain_id, 8)
+                .store_uint(destination_chain_id, 32)
                 .store_uint(sender_address_hash, 256)
                 .store_uint(msg_value, 64)
             .end_cell(),
@@ -80,5 +80,21 @@ cell get_oracles() inline {
         ;; send_mode - 0 to pay fee with the unlocked coins.
         ;; this will reduce the amount of fees paid by the oracle.
         send_raw_message(transfer_msg, 0);
+    } elseif (op == op::burn_notification()) {
+        int burn_value = in_msg_body~load_coins();
+        int destination_address = in_msg_body~load_uint(160);
+        int destination_chain_id = in_msg_body~load_uint(32);
+        
+        emit_log(
+            event_id::burn_jetton,
+            begin_cell()
+                .store_uint(destination_address, 160)
+                .store_uint(destination_chain_id, 32)
+                .store_uint(burn_value, 64)
+            .end_cell(),
+            null()
+        );
+    } else {
+        throw(error::unknown_operation);
     }
 }
