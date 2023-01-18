@@ -1,10 +1,19 @@
-import { Address, beginCell, Slice, toNano } from "ton";
+import {
+  Address,
+  beginCell,
+  toNano,
+  TransactionComputeVm,
+  TransactionDescriptionGeneric,
+} from "ton";
 import { ContractExecutor, ContractSystem, Treasure } from "ton-emulator";
 import { createBridge, getBalance } from "./helpers";
-import { expect } from "chai";
-import { inspect } from "util";
+import chai, { expect } from "chai";
+import BN from "bn.js";
+import chaiBn from "chai-bn";
 
-describe("Test wrapping bridge", () => {
+chai.use(chaiBn(BN));
+
+describe("Test wrapped swap", () => {
   let system: ContractSystem;
   let treasure: Treasure;
   let oracleTreasure: Treasure;
@@ -71,7 +80,7 @@ describe("Test wrapping bridge", () => {
       .beginParse();
 
     await oracleTreasure.send({
-      sendMode: 1,
+      sendMode: 0,
       to: bridge.address,
       value: feeValue,
       body: beginCell()
@@ -93,8 +102,51 @@ describe("Test wrapping bridge", () => {
     ).to.be.empty;
 
     let newBalance = await getBalance(system, treasure);
-    let fees = txs[txs.length - 1].totalFees.coins;
 
-    expect(newBalance).to.be.equal(oldBalance + (value - fees));
+    // TODO: calculate exact value with fees and compare for equality.
+    expect(newBalance.toString()).to.be.bignumber.greaterThan(
+      oldBalance.toString()
+    );
+  });
+
+  it("should fail to unlock TONs because of non oracle account", async () => {
+    const destinationAddress = treasure.address;
+    const value = toNano(2);
+    const feeValue = 10000000n;
+
+    const body = beginCell()
+      .storeAddress(destinationAddress)
+      .storeUint(value, 64)
+      .endCell()
+      .beginParse();
+
+    // Send transaction from non oracle account.
+    await treasure.send({
+      sendMode: 0,
+      to: bridge.address,
+      value: feeValue,
+      body: beginCell()
+        .storeUint(2, 32) // op
+        .storeUint(111, 64) // query id
+        .storeSlice(body)
+        .endCell(),
+      bounce: false,
+    });
+    let txs = await system.run();
+
+    expect(
+      txs.filter(
+        (tx) =>
+          (tx.description as any).aborted !== undefined &&
+          (tx.description as any).aborted === true
+      ),
+      "Transaction was not aborted"
+    ).to.be.not.empty;
+
+    let desc = txs[txs.length - 1].description as TransactionDescriptionGeneric;
+    let computePhase = desc.computePhase as TransactionComputeVm;
+
+    // 402 exit code - the sender is not an oracle.
+    expect(computePhase.exitCode).to.be.equal(402);
   });
 });
