@@ -20,11 +20,11 @@ export const createBridge = async (
   treasure: Treasure
 ): Promise<ContractExecutor> => {
   const targets: CompilationTargets = {
-    "stdlib.fc": "func/stdlib.fc",
-    "opcodes.fc": "func/opcodes.fc",
-    "errors.fc": "func/errors.fc",
-    "utils.fc": "func/utils.fc",
-    "bridge.fc": "func/bridge.fc",
+    "stdlib.fc": "func/wrapped-swap/stdlib.fc",
+    "opcodes.fc": "func/wrapped-swap/opcodes.fc",
+    "errors.fc": "func/wrapped-swap/errors.fc",
+    "utils.fc": "func/wrapped-swap/utils.fc",
+    "bridge.fc": "func/wrapped-swap/bridge.fc",
   };
 
   const compilationResult = await compileFunc({
