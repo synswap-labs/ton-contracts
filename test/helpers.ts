@@ -24,6 +24,7 @@ export const createBridge = async (
     "opcodes.fc": "func/wrapped-swap/opcodes.fc",
     "errors.fc": "func/wrapped-swap/errors.fc",
     "utils.fc": "func/wrapped-swap/utils.fc",
+    "params.fc": "func/wrapped-swap/params.fc",
     "bridge.fc": "func/wrapped-swap/bridge.fc",
   };
 
@@ -52,7 +53,12 @@ export const createBridge = async (
   const code = Cell.fromBoc(
     Buffer.from(compilationResult.codeBoc, "base64")
   )[0];
-  const data = beginCell().storeDict(oracles_dict).endCell();
+
+  const data = beginCell()
+    .storeAddress(treasure.address) // admin address
+    .storeDict(oracles_dict) // dict of oracles
+    .endCell();
+
   const contract = await ContractExecutor.create(
     { code, data, balance: BigInt(10) },
     system

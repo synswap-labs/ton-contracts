@@ -7,18 +7,22 @@ const int event_id::lock_ton = 101;
 const int event_id::burn_jetton = 102;
 
 ;; load_data returns data from c4 cell.
-cell load_data() inline_ref {
+(slice, cell, cell) load_data() inline_ref {
     slice data = get_data().begin_parse();
 
     return (
-        data~load_dict()   ;; oracles
+        data~load_msg_addr(),   ;; admin address
+        data~load_dict(),       ;; oracles
+        data~load_ref()         ;; jetton minter code
     );
 }
 
 ;; save_data saves data to c4 cell.
+;; admin_address:MsgAddress - admin address.
 ;; oracles:^Cell - dict of oracles.
-() save_data(cell oracles) impure inline_ref {
+() save_data(slice admin_address, cell oracles) impure inline_ref {
     cell data = begin_cell()
+                    .store_slice(admin_address)
                     .store_dict(oracles)
                 .end_cell();
 
@@ -28,8 +32,14 @@ cell load_data() inline_ref {
 ;; get_oracles returns a dict of oracles stored in c4 cell.
 ;; key: uint256 (public key), value: (key: uint256 (chain id), value: uint256 (public key for chain))
 cell get_oracles() inline {
-    cell oracles = load_data();
+    (_, cell oracles, _) = load_data();
     return oracles;
+}
+
+;; get_admin_address returns admin address stored in c4 cell.
+slice get_admin_address() inline {
+    (slice admin_address, _, _) = load_data();
+    return admin_address;
 }
 
 () recv_internal(int msg_value, cell in_msg_full, slice in_msg_body) impure {
@@ -94,7 +104,52 @@ cell get_oracles() inline {
             .end_cell(),
             null()
         );
+    } elseif (op == op::add_jetton) {
+        (_, int admin_address_hash) = parse_std_addr(get_admin_address());
+        throw_if(error::not_admin, sender_address_hash != admin_address_hash);
+
+        int chain_id = in_msg_body~load_uint(32);
+
+        ;; TODO: check if chain_id is already added
+
+        cell jetton_content = in_msg_body~load_ref();
+        slice jetton_address = deploy_jetton(jetton_content);
+
+        ;; TODO: store jetton info
     } else {
         throw(error::unknown_operation);
     }
+}
+
+slice deploy_jetton(cell content) {
+    (_, _, cell jetton_minter_code) = load_data();
+
+    cell jetton_minter_data = begin_cell()
+                                .store_coins(0)                 ;; total supply 
+                                .store_ref(content)             ;; jetton data
+                                .store_ref(jetton_minter_code)  ;; minter code 
+                            .end_cell();
+
+    cell jetton_state_init = begin_cell()
+                                .store_uint(0, 2)
+                                .store_dict(jetton_minter_code)
+                                .store_dict(jetton_minter_data)
+                                .store_uint(0, 1)
+                            .end_cell();
+
+    slice jetton_address = calculate_address_by_state_init(jetton_state_init);
+
+    cell msg = begin_cell()
+                .store_uint(0x18, 6)
+                .store_slice(jetton_address)
+                .store_coins(0)
+                .store_uint(4 + 2 + 1, 1 + 4 + 4 + 64 + 32 + 1 + 1)
+                .store_ref(jetton_state_init)
+                .store_ref(content)
+            .end_cell();
+
+    ;; send mode - 1 to pay transfer fees separately, revert on errors
+    send_raw_message(msg, 1);
+
+    return jetton_address;
 }

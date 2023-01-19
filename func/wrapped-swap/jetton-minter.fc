@@ -61,21 +61,28 @@ int provide_address_gas_consumption() asm "10000000 PUSHINT";
     cs~load_coins(); ;; skip ihr_fee
     int fwd_fee = muldiv(cs~load_coins(), 3, 2); ;; we use message fwd_fee for estimation of forward_payload costs
 
-    int op = in_msg_body~load_uint(32);
-    int query_id = in_msg_body~load_uint(64);
+    (int op, int query_id) = in_msg_body~load_body_header();
 
     (int total_supply, slice admin_address, cell content, cell jetton_wallet_code) = load_data();
 
+    (_, int admin_address_hash) = parse_std_addr(admin_address);
+    (int sender_wc, int sender_address_hash) = parse_std_addr(sender_address);
+
     if (op == op::mint()) {
-        throw_unless(73, equal_slices(sender_address, admin_address));
+        throw_unless(73, (sender_wc == -1) & (sender_address_hash == admin_address_hash));
+
         slice to_address = in_msg_body~load_msg_addr();
         int amount = in_msg_body~load_coins();
         cell master_msg = in_msg_body~load_ref();
+
         slice master_msg_cs = master_msg.begin_parse();
         master_msg_cs~skip_bits(32 + 64); ;; op + query_id
+
         int jetton_amount = master_msg_cs~load_coins();
+
         mint_tokens(to_address, jetton_wallet_code, amount, master_msg);
         save_data(total_supply + jetton_amount, admin_address, content, jetton_wallet_code);
+
         return ();
     }
 
