@@ -121,7 +121,7 @@ slice get_admin_address() inline {
     }
 }
 
-slice deploy_jetton(cell content) {
+slice deploy_jetton(cell content) impure {
     (_, _, cell jetton_minter_code) = load_data();
 
     cell jetton_minter_data = begin_cell()
