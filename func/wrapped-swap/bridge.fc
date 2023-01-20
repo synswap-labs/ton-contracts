@@ -7,20 +7,25 @@ const int event_id::lock_ton = 101;
 const int event_id::burn_jetton = 102;
 
 ;; load_data returns data from c4 cell.
-(slice, cell, cell) load_data() inline_ref {
+(slice, cell, cell, cell, cell) load_data() inline_ref {
     slice data = get_data().begin_parse();
 
     return (
         data~load_msg_addr(),   ;; admin address
         data~load_dict(),       ;; oracles
-        data~load_ref()         ;; jetton minter code
+        data~load_dict(),       ;; jettons 
+        data~load_ref(),        ;; jetton minter code
+        data~load_ref()         ;; jetton wallet code
     );
 }
 
 ;; save_data saves data to c4 cell.
 ;; admin_address:MsgAddress - admin address.
 ;; oracles:^Cell - dict of oracles.
-() save_data(slice admin_address, cell oracles) impure inline_ref {
+;; jettons:^Cell - dict of jettons.
+;; jetton_minter_code:^Cell - jetton minter code.
+;; jetton_wallet_code:^Cell - jetton wallet code.
+() save_data(slice admin_address, cell oracles, cell jettons, cell jetton_minter_code, cell jetton_wallet_code) impure inline_ref {
     cell data = begin_cell()
                     .store_slice(admin_address)
                     .store_dict(oracles)
@@ -32,14 +37,47 @@ const int event_id::burn_jetton = 102;
 ;; get_oracles returns a dict of oracles stored in c4 cell.
 ;; key: uint256 (public key), value: (key: uint256 (chain id), value: uint256 (public key for chain))
 cell get_oracles() inline {
-    (_, cell oracles, _) = load_data();
+    (_, cell oracles, _, _, _) = load_data();
     return oracles;
 }
 
 ;; get_admin_address returns admin address stored in c4 cell.
 slice get_admin_address() inline {
-    (slice admin_address, _, _) = load_data();
+    (slice admin_address, _, _, _, _) = load_data();
     return admin_address;
+}
+
+slice deploy_jetton(cell content) impure {
+    (_, _, _, cell jetton_minter_code, cell jetton_wallet_code) = load_data();
+
+    cell jetton_minter_data = begin_cell()
+                                .store_coins(0)                 ;; total supply 
+                                .store_ref(content)             ;; jetton data
+                                .store_ref(jetton_wallet_code)  ;; wallet code 
+                            .end_cell();
+
+    cell jetton_state_init = begin_cell()
+                                .store_uint(0, 2)
+                                .store_dict(jetton_minter_code)
+                                .store_dict(jetton_minter_data)
+                                .store_uint(0, 1)
+                            .end_cell();
+
+    slice jetton_address = calculate_address_by_state_init(jetton_state_init);
+
+    cell msg = begin_cell()
+                .store_uint(0x18, 6)
+                .store_slice(jetton_address)
+                .store_coins(0)
+                .store_uint(4 + 2 + 1, 1 + 4 + 4 + 64 + 32 + 1 + 1)
+                .store_ref(jetton_state_init)
+                .store_ref(content)
+            .end_cell();
+
+    ;; send mode - 1 to pay transfer fees separately, revert on errors
+    send_raw_message(msg, 1);
+
+    return jetton_address;
 }
 
 () recv_internal(int msg_value, cell in_msg_full, slice in_msg_body) impure {
@@ -119,37 +157,4 @@ slice get_admin_address() inline {
     } else {
         throw(error::unknown_operation);
     }
-}
-
-slice deploy_jetton(cell content) impure {
-    (_, _, cell jetton_minter_code) = load_data();
-
-    cell jetton_minter_data = begin_cell()
-                                .store_coins(0)                 ;; total supply 
-                                .store_ref(content)             ;; jetton data
-                                .store_ref(jetton_minter_code)  ;; minter code 
-                            .end_cell();
-
-    cell jetton_state_init = begin_cell()
-                                .store_uint(0, 2)
-                                .store_dict(jetton_minter_code)
-                                .store_dict(jetton_minter_data)
-                                .store_uint(0, 1)
-                            .end_cell();
-
-    slice jetton_address = calculate_address_by_state_init(jetton_state_init);
-
-    cell msg = begin_cell()
-                .store_uint(0x18, 6)
-                .store_slice(jetton_address)
-                .store_coins(0)
-                .store_uint(4 + 2 + 1, 1 + 4 + 4 + 64 + 32 + 1 + 1)
-                .store_ref(jetton_state_init)
-                .store_ref(content)
-            .end_cell();
-
-    ;; send mode - 1 to pay transfer fees separately, revert on errors
-    send_raw_message(msg, 1);
-
-    return jetton_address;
 }
