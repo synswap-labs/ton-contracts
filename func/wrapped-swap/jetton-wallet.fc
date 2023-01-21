@@ -15,6 +15,7 @@ This is suitable for most tokens, if you need tokens transferable between workch
 #include "stdlib.fc";
 #include "opcodes.fc";
 #include "params.fc";
+#include "utils.fc";
 
 int min_tons_for_storage() asm "10000000 PUSHINT"; ;; 0.01 TON
 int gas_consumption() asm "10000000 PUSHINT"; ;; 0.01 TON

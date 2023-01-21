@@ -26,3 +26,8 @@ int op::mint() asm "21 PUSHINT";
     int query_id = s~load_uint(64);
     return (s, (op, query_id));
 }
+
+builder store_body_header(builder b, int op, int query_id) inline {
+    return b.store_uint(op, 32)
+          .store_uint(query_id, 64);
+}

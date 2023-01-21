@@ -2,6 +2,7 @@ const int error::unknown_operation = 400;
 const int error::empty_msg_body = 401;
 const int error::not_an_oracle = 402;
 const int error::not_admin = 403;
+const int error::coin_id_not_found = 404;
 const int error::already_exists = 409;
 
 const int error::empty_config = 500;
