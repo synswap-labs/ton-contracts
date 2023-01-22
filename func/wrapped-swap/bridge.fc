@@ -4,32 +4,57 @@
 #include "utils.fc";
 
 const int event_id::lock_ton = 101;
-const int event_id::unlock_ton = 102;
+const int event_id::burn_jetton = 102;
 
 ;; load_data returns data from c4 cell.
-cell load_data() inline_ref {
+(slice, cell, cell, cell, cell) load_data() inline_ref {
     slice data = get_data().begin_parse();
 
     return (
-        data~load_dict()   ;; oracles
+        data~load_msg_addr(),   ;; admin address
+        data~load_dict(),       ;; oracles
+        data~load_dict(),       ;; jettons 
+        data~load_ref(),        ;; jetton minter code
+        data~load_ref()         ;; jetton wallet code
     );
 }
 
 ;; save_data saves data to c4 cell.
+;; admin_address:MsgAddress - admin address.
 ;; oracles:^Cell - dict of oracles.
-() save_data(cell oracles) impure inline_ref {
+;; jettons:^Cell - dict of jettons.
+;; jetton_minter_code:^Cell - jetton minter code.
+;; jetton_wallet_code:^Cell - jetton wallet code.
+() save_data(slice admin_address, cell oracles, cell jettons, cell jetton_minter_code, cell jetton_wallet_code) impure inline_ref {
     cell data = begin_cell()
+                    .store_slice(admin_address)
                     .store_dict(oracles)
+                    .store_dict(jettons)
+                    .store_ref(jetton_minter_code)
+                    .store_ref(jetton_wallet_code)
                 .end_cell();
 
     set_data(data);
 }
 
+;; get_admin_address returns admin address stored in c4 cell.
+slice get_admin_address() inline {
+    (slice admin_address, _, _, _, _) = load_data();
+    return admin_address;
+}
+
 ;; get_oracles returns a dict of oracles stored in c4 cell.
-;; key: uint256 (public key), value: (key: uint256 (chain id), value: uint256 (public key for chain))
+;; key: uint256 (public key), value: (key: uint32 (coin id), value: uint256 (public key for chain))
 cell get_oracles() inline {
-    cell oracles = load_data();
+    (_, cell oracles, _, _, _) = load_data();
     return oracles;
+}
+
+;; get_jettons returns a dict of oracles stored in c4 cell.
+;; key: uint32 (coin id), value: MsgAddress (jetton minter address))
+cell get_jettons() inline {
+    (_, _, cell jettons, _, _) = load_data();
+    return jettons;
 }
 
 () recv_internal(int msg_value, cell in_msg_full, slice in_msg_body) impure {
@@ -49,13 +74,13 @@ cell get_oracles() inline {
 
     if (op == op::lock_ton) {
         int destination_address = in_msg_body~load_uint(160);
-        int destination_chain_id = in_msg_body~load_uint(8);
+        int destination_coin_id = in_msg_body~load_uint(32);
 
         emit_log(
             event_id::lock_ton,
             begin_cell()
                 .store_uint(destination_address, 160)
-                .store_uint(destination_chain_id, 8)
+                .store_uint(destination_coin_id, 32)
                 .store_uint(sender_address_hash, 256)
                 .store_uint(msg_value, 64)
             .end_cell(),
@@ -80,5 +105,75 @@ cell get_oracles() inline {
         ;; send_mode - 0 to pay fee with the unlocked coins.
         ;; this will reduce the amount of fees paid by the oracle.
         send_raw_message(transfer_msg, 0);
+    } elseif (op == op::mint()) {
+        cell oracles = get_oracles();
+        (_, int is_oracle) = oracles.udict_get?(256, sender_address_hash);
+
+        throw_if(error::not_an_oracle, ~ is_oracle);
+        
+        slice to_address = in_msg_body~load_msg_addr();
+        int jetton_coin_id = in_msg_body~load_uint(32);
+        int jetton_amount = in_msg_body~load_coins();
+
+        cell jettons = get_jettons();
+        (slice jetton_minter_address, int jetton_exists) = jettons.udict_get?(32, jetton_coin_id);
+
+        throw_if(error::coin_id_not_found, ~ jetton_exists);
+
+        cell master_msg = begin_cell()
+                            .store_body_header(op::mint(), query_id) 
+                            .store_slice(to_address)
+                            .store_coins(jetton_amount)
+                        .end_cell();
+
+        cell msg = begin_cell()
+                    .store_uint(0x18, 6)
+                    .store_slice(jetton_minter_address)
+                    .store_coins(10000000)
+                    .store_uint(0, 1 + 4 + 4 + 64 + 32 + 1 + 1)
+                    .store_ref(master_msg)
+                .end_cell();
+
+        send_raw_message(msg, 0);
+    } elseif (op == op::burn_notification()) {
+        int burn_value = in_msg_body~load_coins();
+        int destination_address = in_msg_body~load_uint(160);
+        int destination_coin_id = in_msg_body~load_uint(32);
+        
+        emit_log(
+            event_id::burn_jetton,
+            begin_cell()
+                .store_uint(destination_address, 160)
+                .store_uint(destination_coin_id, 32)
+                .store_uint(burn_value, 64)
+            .end_cell(),
+            null()
+        );
+    } elseif (op == op::add_jetton) {
+        (slice admin_address, cell oracles, cell jettons,
+            cell jetton_minter_code, cell jetton_wallet_code) = load_data();
+        (_, int admin_address_hash) = parse_std_addr(admin_address);
+        throw_if(error::not_admin, sender_address_hash != admin_address_hash);
+
+        int coin_id = in_msg_body~load_uint(32);
+        slice jetton_address = in_msg_body~load_msg_addr();
+
+        (_, int jetton_exists) = jettons.udict_get?(32, coin_id);
+
+        throw_if(error::already_exists, jetton_exists);
+
+        jettons~udict_set(32, coin_id, jetton_address);
+
+        save_data(admin_address, oracles, jettons, jetton_minter_code, jetton_wallet_code);
+    } else {
+        throw(error::unknown_operation);
     }
+}
+
+(int, int, cell, cell, cell, cell) get_bridge_data() method_id {
+    (slice admin_address, cell oracles, cell jettons,
+        cell jetton_minter_code, cell jetton_wallet_code) = load_data();
+    (int wc, int admin_address_hash) = parse_std_addr(admin_address);
+
+    return (wc, admin_address_hash, oracles, jettons, jetton_minter_code, jetton_wallet_code);
 }

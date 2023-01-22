@@ -2,6 +2,7 @@
 
 const int op::lock_ton = 1;
 const int op::unlock_ton = 2;
+const int op::add_jetton = 3;
 
 ;; Jettons
 
@@ -24,4 +25,9 @@ int op::mint() asm "21 PUSHINT";
     int op = s~load_uint(32);
     int query_id = s~load_uint(64);
     return (s, (op, query_id));
+}
+
+builder store_body_header(builder b, int op, int query_id) inline {
+    return b.store_uint(op, 32)
+          .store_uint(query_id, 64);
 }
