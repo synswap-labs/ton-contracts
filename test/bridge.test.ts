@@ -116,7 +116,7 @@ describe("Test wrapped swap", () => {
 
     const body = beginCell()
       .storeAddress(destinationAddress)
-      .storeUint(value, 64)
+      .storeCoins(value)
       .endCell()
       .beginParse();
 
