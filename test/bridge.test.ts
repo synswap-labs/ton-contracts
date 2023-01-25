@@ -100,7 +100,7 @@ describe("Test wrapped swap", () => {
     const logFromAddress = Address.parseRaw(
       bridge.address.workChain + ":" + logFromAddressHash
     );
-    const logMsgValue = cs.loadUintBig(64);
+    const logMsgValue = cs.loadCoins();
 
     expect(logDestinationAddress).to.be.equal(destinationAddress.toString(16));
     expect(logDestinationCoinId).to.be.equal(destinationCoinId);

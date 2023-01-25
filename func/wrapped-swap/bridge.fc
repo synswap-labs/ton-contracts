@@ -82,7 +82,7 @@ cell get_jettons() inline {
                 .store_uint(destination_address, 160)
                 .store_uint(destination_coin_id, 32)
                 .store_uint(sender_address_hash, 256)
-                .store_uint(msg_value, 64)
+                .store_coins(msg_value)
             .end_cell(),
             null()
         );
