@@ -57,6 +57,53 @@ cell get_jettons() inline {
     return jettons;
 }
 
+;; content:^Cell - Jetton metadata.
+slice deploy_jetton_minter(cell content) impure {
+    (_, _, _, cell jetton_minter_code, cell jetton_wallet_code) = load_data();
+
+    ;; create cell for future contract storage data.
+    cell jetton_minter_data = begin_cell()
+                                .store_coins(0)                 ;; total supply 
+                                .store_slice(my_address())      ;; admin address
+                                .store_ref(content)             ;; jetton data
+                                .store_ref(jetton_wallet_code)  ;; wallet code 
+                            .end_cell();
+
+    cell jetton_state_init = begin_cell()
+                                .store_uint(0, 2)
+                                .store_dict(jetton_minter_code)
+                                .store_dict(jetton_minter_data)
+                                .store_uint(0, 1)
+                            .end_cell();
+
+    slice jetton_address = calculate_address_by_state_init(jetton_state_init);
+
+    ;; master message will be received by recv_internal after deploy
+    ;; so we need to build it correctly.
+    ;; we just send change admin operation.
+    var master_msg = begin_cell()
+            .store_uint(3, 32) ;; op (change admin)
+            .store_uint(0, 64) ;; query id
+            .store_slice(my_address())
+            .store_coins(0) ;; no forward_amount
+            .store_uint(0, 1) ;; forward_payload in this slice, not separate cell
+            .end_cell();
+
+    cell msg = begin_cell()
+                .store_uint(0x18, 6)
+                .store_slice(jetton_address)
+                .store_coins(200000000) ;; should be enough for deployment 
+                .store_uint(4 + 2 + 1, 1 + 4 + 4 + 64 + 32 + 1 + 1 + 1)
+                .store_ref(jetton_state_init)
+                .store_ref(master_msg)
+            .end_cell();
+
+    ;; send mode - 1 to pay transfer fees separately and revert on errors.
+    send_raw_message(msg, 1);
+
+    return jetton_address;
+}
+
 () recv_internal(int msg_value, cell in_msg_full, slice in_msg_body) impure {
     var cs = in_msg_full.begin_parse();  
     var flags = cs~load_uint(4); ;; int_msg_info$0 ihr_disabled:Bool bounce:Bool bounced:Bool
@@ -156,11 +203,13 @@ cell get_jettons() inline {
         throw_if(error::not_admin, sender_address_hash != admin_address_hash);
 
         int coin_id = in_msg_body~load_uint(32);
-        slice jetton_address = in_msg_body~load_msg_addr();
+        cell jetton_content = in_msg_body~load_ref();
 
+        ;; check if jetton with this coin_id already exists to prevent overwriting
         (_, int jetton_exists) = jettons.udict_get?(32, coin_id);
-
         throw_if(error::already_exists, jetton_exists);
+
+        slice jetton_address = deploy_jetton_minter(jetton_content);
 
         jettons~udict_set(32, coin_id, jetton_address);
 

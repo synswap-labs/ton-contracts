@@ -4,7 +4,6 @@ import { Treasure } from "ton-emulator/dist/treasure/Treasure";
 import { readFileSync } from "fs";
 import { Address, beginCell, Cell, Contract, Dictionary, toNano } from "ton";
 import { Sha256 } from "@aws-crypto/sha256-js";
-import { inspect } from "util";
 
 type CompilationTargets = {
   [name: string]: string;

@@ -19,11 +19,12 @@
 }
 
 slice create_address(int wc, int address_hash) inline {
-    return begin_cell().store_uint(4, 3)
+    return begin_cell()
+            .store_uint(4, 3)
             .store_int(wc, 8)
             .store_uint(address_hash, 256)
             .end_cell()
-            .begin_parse();
+        .begin_parse();
 }
 
 slice calculate_address_by_state_init(cell state_init) inline {

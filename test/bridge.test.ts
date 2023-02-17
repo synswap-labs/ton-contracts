@@ -201,16 +201,9 @@ describe("Test wrapped swap", () => {
     });
     const feeValue = toNano(1);
 
-    const jetton = await deployJettonMinter(
-      system,
-      oracleTreasure,
-      bridge.address,
-      metadata
-    );
-
     const body = beginCell()
       .storeUint(jettonCoinId, 32)
-      .storeAddress(jetton.address)
+      .storeRef(metadata)
       .endCell()
       .beginParse();
 
