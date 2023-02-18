@@ -81,13 +81,13 @@ slice deploy_jetton_minter(cell content) impure {
     ;; master message will be received by recv_internal after deploy
     ;; so we need to build it correctly.
     ;; we just send change admin operation.
-    var master_msg = begin_cell()
-            .store_uint(3, 32) ;; op (change admin)
-            .store_uint(0, 64) ;; query id
-            .store_slice(my_address())
-            .store_coins(0) ;; no forward_amount
-            .store_uint(0, 1) ;; forward_payload in this slice, not separate cell
-            .end_cell();
+    cell master_msg = begin_cell()
+                        .store_uint(3, 32) ;; op (change admin)
+                        .store_uint(0, 64) ;; query id
+                        .store_slice(my_address()) ;; new admin address (won't actually change)
+                        .store_coins(0) ;; no forward_amount
+                        .store_uint(0, 1) ;; forward_payload in this slice, not separate cell
+                    .end_cell();
 
     cell msg = begin_cell()
                 .store_uint(0x18, 6)
@@ -177,7 +177,7 @@ slice deploy_jetton_minter(cell content) impure {
                     .store_uint(0x18, 6)
                     .store_slice(jetton_minter_address)
                     .store_coins(10000000)
-                    .store_uint(0, 1 + 4 + 4 + 64 + 32 + 1 + 1)
+                    .store_uint(1, 1 + 4 + 4 + 64 + 32 + 1 + 1)
                     .store_ref(master_msg)
                 .end_cell();
 
