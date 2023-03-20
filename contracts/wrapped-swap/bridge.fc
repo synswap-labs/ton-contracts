@@ -185,14 +185,15 @@ slice deploy_jetton_minter(cell content) impure {
     } elseif (op == op::burn_notification()) {
         int burn_value = in_msg_body~load_coins();
         int destination_address = in_msg_body~load_uint(160);
-        int destination_coin_id = in_msg_body~load_uint(32);
+        int coin_id = in_msg_body~load_uint(32);
         
         emit_log(
             event_id::burn_jetton,
             begin_cell()
                 .store_uint(destination_address, 160)
-                .store_uint(destination_coin_id, 32)
-                .store_uint(burn_value, 64)
+                .store_uint(coin_id, 32)
+                .store_uint(sender_address_hash, 256)
+                .store_coins(burn_value)
             .end_cell(),
             null()
         );
@@ -225,4 +226,14 @@ slice deploy_jetton_minter(cell content) impure {
     (int wc, int admin_address_hash) = parse_std_addr(admin_address);
 
     return (wc, admin_address_hash, oracles, jettons, jetton_minter_code, jetton_wallet_code);
+}
+
+slice get_jetton_wallet_address(int coin_id, slice owner_address) method_id {
+    (_, _, cell jettons, _, cell jetton_wallet_code) = load_data();
+
+    (slice jetton_minter_address, int jetton_exists) = jettons.udict_get?(32, coin_id);
+
+    throw_if(error::coin_id_not_found, ~ jetton_exists);
+
+    return calculate_user_jetton_wallet_address(owner_address, jetton_minter_address, jetton_wallet_code);
 }
