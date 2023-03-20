@@ -1,34 +1,27 @@
 {
-  "name": "bifrost-ton-contracts",
-  "version": "1.0.0",
-  "main": "index.js",
-  "directories": {
-    "test": "test"
-  },
-  "scripts": {
-    "test": "ts-mocha './test/*.test.ts'"
-  },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "description": "",
-  "dependencies": {
-    "@aws-crypto/sha256-js": "^3.0.0",
-    "@ton-community/func-js": "^0.4.0",
-    "bn.js": "^5.2.1",
-    "chai": "^4.3.7",
-    "chai-bn": "^0.3.1",
-    "ton": "^13.3.0",
-    "ton-emulator": "^1.6.0",
-    "typescript": "^4.9.4"
-  },
-  "devDependencies": {
-    "@types/bn.js": "^5.1.1",
-    "@types/chai": "^4.3.4",
-    "@types/expect": "^24.3.0",
-    "@types/mocha": "^10.0.1",
-    "@types/node": "^18.11.18",
-    "mocha": "^10.2.0",
-    "ts-mocha": "^10.0.0"
-  }
+    "name": "bifrost-ton-contracts",
+    "version": "0.0.1",
+    "license": "MIT",
+    "scripts": {
+        "test": "jest"
+    },
+    "devDependencies": {
+        "@ton-community/blueprint": "^0.4.1",
+        "@ton-community/sandbox": "^0.5.1",
+        "@ton-community/test-utils": "^0.0.2",
+        "@types/jest": "^29.2.6",
+        "@types/node": "^18.11.18",
+        "jest": "^29.3.1",
+        "prettier": "^2.8.3",
+        "ton": "^13.4.1",
+        "ton-core": "^0.48.0",
+        "ton-crypto": "^3.2.0",
+        "ts-jest": "^29.0.5",
+        "ts-node": "^10.9.1",
+        "typescript": "^4.9.4"
+    },
+    "dependencies": {
+        "@aws-crypto/sha256-js": "^4.0.0",
+        "ts-dotenv": "^0.9.1"
+    }
 }
