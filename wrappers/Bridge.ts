@@ -147,7 +147,7 @@ export class Bridge implements Contract {
         const body = beginCell().storeUint(params.coinId, 32).storeRef(params.data).endCell().beginParse();
 
         await provider.internal(via, {
-            value: params.value ?? toNano('0.05'),
+            value: params.value ?? toNano('0.2'),
             body: beginCell()
                 .storeUint(3, 32) // op
                 .storeUint(0, 64) // query id

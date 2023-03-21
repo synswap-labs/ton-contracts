@@ -137,6 +137,47 @@ describe('Bridge', () => {
             image: 'https://example.com/image.png',
             description: 'some description for the test jetton',
         });
+
+        const expectedMinterAddress = JettonMinter.calculateAddress(0, bridge.address, metadata);
+
+        const res = await bridge.sendAddJetton(admin.getSender(), {
+            coinId: jettonCoinId,
+            data: metadata,
+        });
+
+        expect(res.transactions).toHaveTransaction({
+            from: bridge.address,
+            to: expectedMinterAddress,
+            deploy: true,
+            success: true,
+        });
+
+        const bridgeData = await bridge.getBridgeData();
+
+        expect(bridgeData.jettons.has(jettonCoinId)).toBeTruthy();
+        expect(bridgeData.jettons.get(jettonCoinId)?.toString()).toEqual(expectedMinterAddress.toString());
+    });
+
+    it('should fail to add new jetton because of non admin account', async () => {
+        const jettonCoinId = 1729;
+        const metadata = buildTokenMetadataCell({
+            name: 'Wrapped TZS',
+            symbol: 'bTZS',
+            image: 'https://example.com/image.png',
+            description: 'some description for the test jetton',
+        });
+
+        const res = await bridge.sendAddJetton(user.getSender(), {
+            coinId: jettonCoinId,
+            data: metadata,
+        });
+
+        expect(res.transactions).toHaveTransaction({
+            from: user.address,
+            to: bridge.address,
+            success: false,
+            exitCode: 403,
+        });
     });
 
     it('should mint jetton to destination address', async () => {});
