@@ -6,7 +6,7 @@
 const int event_id::lock_ton = 101;
 const int event_id::burn_jetton = 102;
 
-;; load_data returns data from c4 cell.
+;; `load_data` returns data from c4 cell.
 (slice, cell, cell, cell, cell) load_data() inline_ref {
     slice data = get_data().begin_parse();
 
@@ -19,7 +19,7 @@ const int event_id::burn_jetton = 102;
     );
 }
 
-;; save_data saves data to c4 cell.
+;; `save_data` saves data to c4 cell.
 ;; admin_address:MsgAddress - admin address.
 ;; oracles:^Cell - dict of oracles.
 ;; jettons:^Cell - dict of jettons.
@@ -37,26 +37,28 @@ const int event_id::burn_jetton = 102;
     set_data(data);
 }
 
-;; get_admin_address returns admin address stored in c4 cell.
+;; `get_admin_address` returns admin address stored in c4 cell.
 slice get_admin_address() inline {
     (slice admin_address, _, _, _, _) = load_data();
     return admin_address;
 }
 
-;; get_oracles returns a dict of oracles stored in c4 cell.
+;; `get_oracles` returns a dict of oracles stored in c4 cell.
 ;; key: uint256 (public key), value: (key: uint32 (coin id), value: uint256 (public key for chain))
 cell get_oracles() inline {
     (_, cell oracles, _, _, _) = load_data();
     return oracles;
 }
 
-;; get_jettons returns a dict of oracles stored in c4 cell.
+;; `get_jettons` returns a dict of oracles stored in c4 cell.
 ;; key: uint32 (coin id), value: MsgAddress (jetton minter address))
 cell get_jettons() inline {
     (_, _, cell jettons, _, _) = load_data();
     return jettons;
 }
 
+;; `deploy_jetton_minter` sends new minter's stateinit message to the pre-calculated smart-contract address.
+;; thus, it deploys and initilalizes a new minter contract.
 ;; content:^Cell - Jetton metadata.
 slice deploy_jetton_minter(cell content) impure {
     (_, _, _, cell jetton_minter_code, cell jetton_wallet_code) = load_data();
@@ -82,11 +84,11 @@ slice deploy_jetton_minter(cell content) impure {
     ;; so we need to build it correctly.
     ;; we just send change admin operation.
     cell master_msg = begin_cell()
-                        .store_uint(3, 32) ;; op (change admin)
-                        .store_uint(0, 64) ;; query id
-                        .store_slice(my_address()) ;; new admin address (won't actually change)
-                        .store_coins(0) ;; no forward_amount
-                        .store_uint(0, 1) ;; forward_payload in this slice, not separate cell
+                        .store_uint(3, 32)          ;; op (change admin)
+                        .store_uint(0, 64)          ;; query id
+                        .store_slice(my_address())  ;; new admin address (won't actually change)
+                        .store_coins(0)             ;; no forward_amount
+                        .store_uint(0, 1)           ;; forward_payload in this slice, not separate cell
                     .end_cell();
 
     cell msg = begin_cell()
@@ -102,6 +104,40 @@ slice deploy_jetton_minter(cell content) impure {
     send_raw_message(msg, 1);
 
     return jetton_address;
+}
+
+;; `mint_jetton` sends message to the minter contract with the mint opcode and required paramaters.
+;; minter_address:MsgAddress - jetton minter contract address.
+;; to_address:MsgAddress - address to mint jetton to.
+;; amount:Coins - amount of jetton to mint.
+;; forward_amount:Coins - amount to transfer to the jetton wallet.
+() mint_jetton(slice minter_address, slice to_address, int amount, int forward_amount) impure {
+    cell internal_transfer_msg = begin_cell()
+                                        .store_body_header(op::internal_transfer(), 0)
+                                        .store_coins(amount)        
+                                        .store_uint(0, 2) ;; from address
+                                        .store_uint(0, 2) ;; response address
+                                        .store_coins(0)   ;; no forward
+                                        .store_uint(0, 1) ;; normal forward payload
+                                    .end_cell();
+
+    cell master_msg = begin_cell()
+                            .store_body_header(op::mint(), 0) 
+                            .store_slice(to_address)
+                            .store_coins(forward_amount)
+                            .store_ref(internal_transfer_msg)
+                        .end_cell();
+
+    cell msg = begin_cell()
+                    .store_uint(0x18, 6)
+                    .store_slice(minter_address)
+                    .store_coins(forward_amount)
+                    .store_uint(1, 1 + 4 + 4 + 64 + 32 + 1 + 1)
+                    .store_ref(master_msg)
+                .end_cell();
+
+    ;; send mode - 64 + 1 to carry all the remaining value of the inbound message and revert on errors.
+    send_raw_message(msg, 64 + 1);
 }
 
 () recv_internal(int msg_value, cell in_msg_full, slice in_msg_body) impure {
@@ -161,27 +197,14 @@ slice deploy_jetton_minter(cell content) impure {
         slice to_address = in_msg_body~load_msg_addr();
         int jetton_coin_id = in_msg_body~load_uint(32);
         int jetton_amount = in_msg_body~load_coins();
+        int forward_amount = in_msg_body~load_coins();
 
         cell jettons = get_jettons();
         (slice jetton_minter_address, int jetton_exists) = jettons.udict_get?(32, jetton_coin_id);
 
         throw_if(error::coin_id_not_found, ~ jetton_exists);
 
-        cell master_msg = begin_cell()
-                            .store_body_header(op::mint(), query_id) 
-                            .store_slice(to_address)
-                            .store_coins(jetton_amount)
-                        .end_cell();
-
-        cell msg = begin_cell()
-                    .store_uint(0x18, 6)
-                    .store_slice(jetton_minter_address)
-                    .store_coins(10000000)
-                    .store_uint(1, 1 + 4 + 4 + 64 + 32 + 1 + 1)
-                    .store_ref(master_msg)
-                .end_cell();
-
-        send_raw_message(msg, 0);
+        mint_jetton(jetton_minter_address, to_address, jetton_amount, forward_amount);
     } elseif (op == op::burn_notification()) {
         int burn_value = in_msg_body~load_coins();
         int destination_address = in_msg_body~load_uint(160);
@@ -198,7 +221,7 @@ slice deploy_jetton_minter(cell content) impure {
             event_id::burn_jetton,
             begin_cell()
                 .store_uint(destination_address, 160)
-                .store_uint(coin_id, 32)
+                .store_uint(jetton_coin_id, 32)
                 .store_uint(sender_address_hash, 256)
                 .store_coins(burn_value)
             .end_cell(),

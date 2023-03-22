@@ -6,6 +6,7 @@ import { JettonMinter } from '../wrappers/JettonMinter';
 import { JettonWallet } from '../wrappers/JettonWallet';
 import { buildTokenMetadataCell } from './helpers';
 import { SandboxContract } from '@ton-community/sandbox/dist/blockchain/Blockchain';
+import { inspect } from 'util';
 
 describe('Bridge', () => {
     let blockchain: Blockchain;
@@ -15,6 +16,15 @@ describe('Bridge', () => {
     let oracle: SandboxContract<TreasuryContract>;
     let user: SandboxContract<TreasuryContract>;
 
+    // Some test data
+    const jettonCoinId = 1729;
+    const metadata = buildTokenMetadataCell({
+        name: 'Wrapped TZS',
+        symbol: 'bTZS',
+        image: 'https://example.com/image.png',
+        description: 'some description for the test jetton',
+    });
+
     beforeAll(async () => {
         blockchain = await Blockchain.create();
 
@@ -23,7 +33,7 @@ describe('Bridge', () => {
         user = await blockchain.treasury('random-user');
 
         bridge = blockchain.openContract(
-            new Bridge(0, {
+            new Bridge(-1, {
                 adminAddr: admin.address,
                 oracleAddr: oracle.address,
                 feeAddr: admin.address,
@@ -33,7 +43,7 @@ describe('Bridge', () => {
             })
         );
 
-        const deployResult = await bridge.sendDeploy(admin.getSender(), toNano('0.05'));
+        const deployResult = await bridge.sendDeploy(admin.getSender(), toNano('10.0'));
 
         expect(deployResult.transactions).toHaveTransaction({
             from: admin.address,
@@ -130,14 +140,6 @@ describe('Bridge', () => {
     });
 
     it('should add new jetton to bridge', async () => {
-        const jettonCoinId = 1729;
-        const metadata = buildTokenMetadataCell({
-            name: 'Wrapped TZS',
-            symbol: 'bTZS',
-            image: 'https://example.com/image.png',
-            description: 'some description for the test jetton',
-        });
-
         const expectedMinterAddress = JettonMinter.calculateAddress(0, bridge.address, metadata);
 
         const res = await bridge.sendAddJetton(admin.getSender(), {
@@ -159,14 +161,6 @@ describe('Bridge', () => {
     });
 
     it('should fail to add new jetton because of non admin account', async () => {
-        const jettonCoinId = 1729;
-        const metadata = buildTokenMetadataCell({
-            name: 'Wrapped TZS',
-            symbol: 'bTZS',
-            image: 'https://example.com/image.png',
-            description: 'some description for the test jetton',
-        });
-
         const res = await bridge.sendAddJetton(user.getSender(), {
             coinId: jettonCoinId,
             data: metadata,
@@ -180,5 +174,30 @@ describe('Bridge', () => {
         });
     });
 
-    it('should mint jetton to destination address', async () => {});
+    it('should mint jetton to destination address', async () => {
+        const res = await bridge.sendMintJetton(oracle.getSender(), {
+            value: toNano('0.5'),
+            address: user.address,
+            coinId: jettonCoinId,
+            amount: toNano('2.0'),
+            forwardAmount: toNano('0.1'),
+        });
+
+        const minterAddress = JettonMinter.calculateAddress(0, bridge.address, metadata);
+
+        console.log(inspect(res.transactions, false, 10000));
+        console.log(oracle.address.toString());
+        console.log(bridge.address.toString());
+        console.log(minterAddress.toString());
+
+        // expect(res.transactions).toHaveTransaction({
+        //     from: bridge.address,
+        //     to: minterAddress,
+        //     success: true,
+        // });
+
+        expect(res.transactions).not.toHaveTransaction({
+            success: false,
+        });
+    });
 });

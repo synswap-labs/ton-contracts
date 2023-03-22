@@ -111,16 +111,18 @@ int is_resolvable?(slice addr) inline {
     if (op == op::burn_notification()) {
         int jetton_amount = in_msg_body~load_coins();
         slice from_address = in_msg_body~load_msg_addr();
-        slice custom_payload = in_msg_body~load_dict();
+        cell custom_payload = in_msg_body~load_dict();
 
         throw_unless(74,
             equal_slices(calculate_user_jetton_wallet_address(from_address, my_address(), jetton_wallet_code), sender_address)
         );
 
-        (slice detination_address, address_set) = custom_payload.udict_get?(32, payload_key::destination_addr);
-        (slice jetton_coin_id, coin_id_set) = custom_payload.udict_get?(32, payload_key::jetton_coin_id);
+        (slice detination_address, int address_set) = custom_payload.udict_get?(32, payload_key::destination_addr);
+        (slice jetton_coin_id_slice, int coin_id_set) = custom_payload.udict_get?(32, payload_key::jetton_coin_id);
 
-        throw_unless(errors::invalid_payload, address_set & coin_id_set)
+        throw_unless(error::invalid_payload, address_set & coin_id_set);
+
+        int jetton_coin_id = jetton_coin_id_slice~load_uint(32);
 
         save_data(total_supply - jetton_amount, admin_address, content, jetton_wallet_code);
 

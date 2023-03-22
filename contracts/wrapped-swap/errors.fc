@@ -1,4 +1,4 @@
-const int error::unknown_operation = 400;
+const int error::unknown_operation = 0xffff;
 const int error::empty_msg_body = 401;
 const int error::not_an_oracle = 402;
 const int error::not_an_admin = 403;

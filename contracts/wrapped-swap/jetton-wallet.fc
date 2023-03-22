@@ -167,11 +167,11 @@ int gas_consumption() asm "10000000 PUSHINT"; ;; 0.01 TON
     int jetton_amount = in_msg_body~load_coins();
     slice response_address = in_msg_body~load_msg_addr();
 
-    throw_unless(704, in_msg_body.slice_bits() >= 0)
+    throw_unless(704, in_msg_body.slice_bits() >= 0);
 
     ;; we use a custom payload to get the parameters required for
     ;; the bridge notification.
-    slice custom_payload = in_msg_body~load_dict();
+    cell custom_payload = in_msg_body~load_dict();
 
     throw_unless(705, equal_slices(owner_address, sender_address));
     throw_unless(706, balance >= 0);

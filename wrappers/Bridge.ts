@@ -99,36 +99,11 @@ export class Bridge implements Contract {
         const body = beginCell().storeAddress(params.address).storeCoins(params.amount).endCell().beginParse();
 
         await provider.internal(via, {
-            value: params.value ?? toNano('0.05'),
+            value: params.value ?? toNano('0.2'),
+            bounce: true,
+            sendMode: SendMode.NONE,
             body: beginCell()
                 .storeUint(2, 32) // op
-                .storeUint(0, 64) // query id
-                .storeSlice(body)
-                .endCell(),
-        });
-    }
-
-    async sendMintJetton(
-        provider: ContractProvider,
-        via: Sender,
-        params: {
-            value?: bigint;
-            address: Address;
-            coinId: number;
-            amount: number;
-        }
-    ) {
-        const body = beginCell()
-            .storeAddress(params.address)
-            .storeUint(params.coinId, 32)
-            .storeCoins(params.amount)
-            .endCell()
-            .beginParse();
-
-        await provider.internal(via, {
-            value: params.value ?? toNano('0.05'),
-            body: beginCell()
-                .storeUint(21, 32) // op
                 .storeUint(0, 64) // query id
                 .storeSlice(body)
                 .endCell(),
@@ -147,7 +122,7 @@ export class Bridge implements Contract {
         const body = beginCell().storeUint(params.coinId, 32).storeRef(params.data).endCell().beginParse();
 
         await provider.internal(via, {
-            value: params.value ?? toNano('0.2'),
+            value: params.value ?? toNano('0.5'),
             body: beginCell()
                 .storeUint(3, 32) // op
                 .storeUint(0, 64) // query id
@@ -156,7 +131,34 @@ export class Bridge implements Contract {
         });
     }
 
-    async sendAddOracle(provider: ContractProvider, via: Sender, params: {}) {}
+    async sendMintJetton(
+        provider: ContractProvider,
+        via: Sender,
+        params: {
+            value?: bigint;
+            address: Address;
+            coinId: number;
+            amount: bigint;
+            forwardAmount: bigint;
+        }
+    ) {
+        const body = beginCell()
+            .storeAddress(params.address)
+            .storeUint(params.coinId, 32)
+            .storeCoins(params.amount)
+            .storeCoins(params.forwardAmount)
+            .endCell()
+            .beginParse();
+
+        await provider.internal(via, {
+            value: params.value ?? toNano('0.2'),
+            body: beginCell()
+                .storeUint(21, 32) // op
+                .storeUint(0, 64) // query id
+                .storeSlice(body)
+                .endCell(),
+        });
+    }
 
     async getBridgeData(provider: ContractProvider) {
         const res = await provider.get('get_bridge_data', []);
