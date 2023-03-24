@@ -80,7 +80,7 @@ slice deploy_jetton_minter(cell content) impure {
 
     slice jetton_address = calculate_address_by_state_init(jetton_state_init);
 
-    ;; master message will be received by recv_internal after deploy
+    ;; master message will be received by `recv_internal` after deploy
     ;; so we need to build it correctly.
     ;; we just send change admin operation.
     cell master_msg = begin_cell()
@@ -113,31 +113,31 @@ slice deploy_jetton_minter(cell content) impure {
 ;; forward_amount:Coins - amount to transfer to the jetton wallet.
 () mint_jetton(slice minter_address, slice to_address, int amount, int forward_amount) impure {
     cell internal_transfer_msg = begin_cell()
-                                        .store_body_header(op::internal_transfer(), 0)
-                                        .store_coins(amount)        
-                                        .store_uint(0, 2) ;; from address
-                                        .store_uint(0, 2) ;; response address
-                                        .store_coins(0)   ;; no forward
-                                        .store_uint(0, 1) ;; normal forward payload
-                                    .end_cell();
+                                    .store_body_header(op::internal_transfer(), 0)
+                                    .store_coins(amount)        
+                                    .store_uint(0, 2) ;; from address
+                                    .store_uint(0, 2) ;; response address
+                                    .store_coins(0)   ;; no forward
+                                    .store_uint(0, 1) ;; normal forward payload
+                                .end_cell();
 
     cell master_msg = begin_cell()
-                            .store_body_header(op::mint(), 0) 
-                            .store_slice(to_address)
-                            .store_coins(forward_amount)
-                            .store_ref(internal_transfer_msg)
-                        .end_cell();
+                        .store_body_header(op::mint(), 0) 
+                        .store_slice(to_address)
+                        .store_coins(forward_amount)
+                        .store_ref(internal_transfer_msg)
+                    .end_cell();
 
     cell msg = begin_cell()
-                    .store_uint(0x18, 6)
-                    .store_slice(minter_address)
-                    .store_coins(forward_amount)
-                    .store_uint(1, 1 + 4 + 4 + 64 + 32 + 1 + 1)
-                    .store_ref(master_msg)
-                .end_cell();
+                .store_uint(0x18, 6)
+                .store_slice(minter_address)
+                .store_coins(forward_amount)
+                .store_uint(1, 1 + 4 + 4 + 64 + 32 + 1 + 1)
+                .store_ref(master_msg)
+            .end_cell();
 
-    ;; send mode - 64 + 1 to carry all the remaining value of the inbound message and revert on errors.
-    send_raw_message(msg, 64 + 1);
+    ;; send mode - 1 to pay transfer fees separately and revert on errors.
+    send_raw_message(msg, 1);
 }
 
 () recv_internal(int msg_value, cell in_msg_full, slice in_msg_body) impure {

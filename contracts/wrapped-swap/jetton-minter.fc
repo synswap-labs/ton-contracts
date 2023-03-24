@@ -10,7 +10,7 @@
 ;; ceil(6905000) = 10000000 ~= 0.01 TON
 int provide_address_gas_consumption() asm "10000000 PUSHINT";
 
-;; keys to get params from custom payload on burn;
+;; keys to get params from custom payload on burn.
 
 const int payload_key::destination_addr = 0x4fe560c1;
 const int payload_key::jetton_coin_id = 0x53c2ce98;
@@ -54,10 +54,10 @@ int is_resolvable?(slice addr) inline {
     slice to_wallet_address = calculate_address_by_state_init(state_init);
 
     cell msg = begin_cell()
-                .store_uint(0x10, 6)
+                .store_uint(0x18, 6)
                 .store_slice(to_wallet_address)
                 .store_coins(amount)
-                .store_uint(4 + 2 + 1, 1 + 4 + 4 + 64 + 32 + 1 + 1)
+                .store_uint(4 + 2 + 1, 1 + 4 + 4 + 64 + 32 + 1 + 1 + 1)
                 .store_ref(state_init)
                 .store_ref(master_msg)
             .end_cell();
