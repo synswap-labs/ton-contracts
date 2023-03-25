@@ -115,10 +115,10 @@ slice deploy_jetton_minter(cell content) impure {
     cell internal_transfer_msg = begin_cell()
                                     .store_body_header(op::internal_transfer(), 0)
                                     .store_coins(amount)        
-                                    .store_uint(0, 2) ;; from address
-                                    .store_uint(0, 2) ;; response address
-                                    .store_coins(0)   ;; no forward
-                                    .store_uint(0, 1) ;; normal forward payload
+                                    .store_slice(create_address(0, 0))  ;; from address (use dumb address, not just 0 2 u)
+                                    .store_uint(0, 2)                   ;; response address
+                                    .store_coins(0)                     ;; no forward
+                                    .store_uint(0, 1)                   ;; normal forward payload
                                 .end_cell();
 
     cell master_msg = begin_cell()

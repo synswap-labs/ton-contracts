@@ -184,20 +184,22 @@ describe('Bridge', () => {
         });
 
         const minterAddress = JettonMinter.calculateAddress(0, bridge.address, metadata);
-
-        console.log(inspect(res.transactions, false, 10000));
-        console.log(oracle.address.toString());
-        console.log(bridge.address.toString());
-        console.log(minterAddress.toString());
-
-        // expect(res.transactions).toHaveTransaction({
-        //     from: bridge.address,
-        //     to: minterAddress,
-        //     success: true,
-        // });
+        const expectedWalletAddress = JettonWallet.calculateAddress(user.address, minterAddress);
 
         expect(res.transactions).not.toHaveTransaction({
             success: false,
+        });
+
+        expect(res.transactions).toHaveTransaction({
+            from: bridge.address,
+            to: minterAddress,
+            success: true,
+        });
+
+        expect(res.transactions).toHaveTransaction({
+            from: minterAddress,
+            to: expectedWalletAddress,
+            success: true,
         });
     });
 });
