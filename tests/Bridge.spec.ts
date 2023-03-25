@@ -6,7 +6,6 @@ import { JettonMinter } from '../wrappers/JettonMinter';
 import { JettonWallet } from '../wrappers/JettonWallet';
 import { buildTokenMetadataCell } from './helpers';
 import { SandboxContract } from '@ton-community/sandbox/dist/blockchain/Blockchain';
-import { inspect } from 'util';
 
 describe('Bridge', () => {
     let blockchain: Blockchain;
@@ -216,12 +215,6 @@ describe('Bridge', () => {
             coinId: jettonCoinId,
             destAddr: destinationAddress,
         });
-
-        console.log(inspect(res.transactions, false, 10000));
-        console.log(jWalletAddress.toString());
-        console.log(user.address.toString());
-        console.log(bridge.address.toString());
-        console.log(minterAddress.toString());
 
         expect(res.transactions).not.toHaveTransaction({
             success: false,
