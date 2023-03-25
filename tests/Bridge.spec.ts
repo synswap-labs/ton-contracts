@@ -19,7 +19,7 @@ describe('Bridge', () => {
     // Some test data
     const jettonCoinId = 1729;
     const metadata = buildTokenMetadataCell({
-        name: 'Wrapped TZS',
+        name: 'Synthetic TZS',
         symbol: 'bTZS',
         image: 'https://example.com/image.png',
         description: 'some description for the test jetton',

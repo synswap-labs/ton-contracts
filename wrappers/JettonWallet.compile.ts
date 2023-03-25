@@ -1,5 +1,5 @@
 import { CompilerConfig } from '@ton-community/blueprint';
 
 export const compile: CompilerConfig = {
-    targets: ['contracts/wrapped-swap/jetton-wallet.fc'],
+    targets: ['contracts/synthetic-swap/jetton-wallet.fc'],
 };
