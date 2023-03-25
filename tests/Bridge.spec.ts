@@ -77,13 +77,12 @@ describe('Bridge', () => {
 
     it('should lock TONs and emit log message', async () => {
         const destinationAddress = 0x142d6db735cdb50bfc6ec65f94830320c6c7a245n;
-        const destinationCoinId = 1;
         const value = toNano(2);
 
         const res = await bridge.sendLock(user.getSender(), {
             value,
             destinationAddress,
-            destinationCoinId,
+            destinationCoinId: jettonCoinId,
         });
 
         expect(res.transactions).toHaveTransaction({
@@ -101,7 +100,7 @@ describe('Bridge', () => {
         const logMsgValue = cs.loadCoins();
 
         expect(logDestinationAddress).toEqual(destinationAddress.toString(16));
-        expect(logDestinationCoinId).toEqual(destinationCoinId);
+        expect(logDestinationCoinId).toEqual(jettonCoinId);
         expect(logFromAddress.equals(user.address)).toBeTruthy;
         expect(logMsgValue).toEqual(value);
     });
@@ -201,5 +200,45 @@ describe('Bridge', () => {
             to: expectedWalletAddress,
             success: true,
         });
+    });
+
+    it('should burn jetton and emit log message', async () => {
+        const destinationAddress = 0x142d6db735cdb50bfc6ec65f94830320c6c7a245n;
+        const burnValue = toNano('1.0');
+
+        const minterAddress = JettonMinter.calculateAddress(0, bridge.address, metadata);
+
+        const jWalletAddress = await bridge.getJettonWalletAddress(jettonCoinId, user.address);
+        const jettonWallet = blockchain.openContract(JettonWallet.createFromAddress(jWalletAddress));
+
+        const res = await jettonWallet.sendBurn(user.getSender(), {
+            amount: burnValue,
+            coinId: jettonCoinId,
+            destAddr: destinationAddress,
+        });
+
+        console.log(inspect(res.transactions, false, 10000));
+        console.log(jWalletAddress.toString());
+        console.log(user.address.toString());
+        console.log(bridge.address.toString());
+        console.log(minterAddress.toString());
+
+        expect(res.transactions).not.toHaveTransaction({
+            success: false,
+        });
+
+        const resp = res.transactions[res.transactions.length - 1].outMessages;
+        const cs = resp.get(0)?.body.beginParse()!;
+
+        const logDestinationAddress = cs.loadUintBig(160).toString(16);
+        const logJettonCoinId = cs.loadUint(32);
+        const logFromAddressHash = cs.loadUintBig(256).toString(16);
+        const logFromAddress = Address.parseRaw(bridge.address.workChain + ':' + logFromAddressHash);
+        const logMsgValue = cs.loadCoins();
+
+        expect(logDestinationAddress).toEqual(destinationAddress.toString(16));
+        expect(logJettonCoinId).toEqual(jettonCoinId);
+        expect(logFromAddress.equals(user.address)).toBeTruthy;
+        expect(logMsgValue).toEqual(burnValue);
     });
 });

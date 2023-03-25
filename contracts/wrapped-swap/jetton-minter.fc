@@ -111,24 +111,30 @@ int is_resolvable?(slice addr) inline {
     if (op == op::burn_notification()) {
         int jetton_amount = in_msg_body~load_coins();
         slice from_address = in_msg_body~load_msg_addr();
+        slice response_address = in_msg_body~load_msg_addr();
         cell custom_payload = in_msg_body~load_dict();
 
         throw_unless(74,
             equal_slices(calculate_user_jetton_wallet_address(from_address, my_address(), jetton_wallet_code), sender_address)
         );
 
-        (slice detination_address, int address_set) = custom_payload.udict_get?(32, payload_key::destination_addr);
-        (slice jetton_coin_id_slice, int coin_id_set) = custom_payload.udict_get?(32, payload_key::jetton_coin_id);
+        (cell cda, int address_set) = custom_payload.udict_get_ref?(32, payload_key::destination_addr);
+        (cell cci, int coin_id_set) = custom_payload.udict_get_ref?(32, payload_key::jetton_coin_id);
 
         throw_unless(error::invalid_payload, address_set & coin_id_set);
 
-        int jetton_coin_id = jetton_coin_id_slice~load_uint(32);
+        slice scda = cda.begin_parse();
+        slice scci = cci.begin_parse();
+
+        int destination_address = scda~load_uint(160);
+        int jetton_coin_id = scci~load_uint(32);
 
         save_data(total_supply - jetton_amount, admin_address, content, jetton_wallet_code);
 
         cell new_body = begin_cell()
+                            .store_body_header(op::burn_notification(), query_id)
                             .store_coins(jetton_amount)
-                            .store_slice(detination_address)
+                            .store_uint(destination_address, 160)
                             .store_uint(jetton_coin_id, 32)
                         .end_cell();
 
@@ -140,8 +146,18 @@ int is_resolvable?(slice addr) inline {
                     .store_ref(new_body)
                 .end_cell();
 
+        send_raw_message(msg, 64);
 
-        send_raw_message(msg, 0);
+        if (response_address.preload_uint(2) != 0) {
+            var msg = begin_cell()
+                    .store_uint(0x10, 6) ;; nobounce - int_msg_info$0 ihr_disabled:Bool bounce:Bool bounced:Bool src:MsgAddress -> 011000
+                    .store_slice(response_address)
+                    .store_coins(0)
+                    .store_uint(0, 1 + 4 + 4 + 64 + 32 + 1 + 1)
+                    .store_uint(op::excesses(), 32)
+                    .store_uint(query_id, 64);
+            send_raw_message(msg.end_cell(), 2 + 64);
+        }
         
         return ();
     }
