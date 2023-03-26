@@ -1,5 +1,5 @@
 import { CompilerConfig } from '@ton-community/blueprint';
 
 export const compile: CompilerConfig = {
-    targets: ['contracts/synthetic-swap/jetton-minter.fc'],
+    targets: ['contracts/synthetic-asset/jetton-minter.fc'],
 };

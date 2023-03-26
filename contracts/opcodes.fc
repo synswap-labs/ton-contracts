@@ -1,0 +1,5 @@
+;; Bridge
+
+const int op::lock_ton = 1;
+const int op::unlock_ton = 2;
+const int op::add_jetton = 3;

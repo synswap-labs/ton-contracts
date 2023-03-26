@@ -1,7 +1,9 @@
 #include "errors.fc";
+#include "synthetic-asset/opcodes.fc";
 #include "opcodes.fc";
-#include "stdlib.fc";
-#include "utils.fc";
+#include "common/stdlib.fc";
+#include "common/utils.fc";
+#include "common/opcodes.fc";
 
 const int event_id::lock_ton = 101;
 const int event_id::burn_jetton = 102;
