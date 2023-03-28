@@ -1,0 +1,45 @@
+#include "errors.fc";
+#include "opcodes.fc";
+#include "common/stdlib.fc";
+#include "common/utils.fc";
+#include "common/opcodes.fc";
+
+(cell) load_data() inline_ref {
+    slice data = get_data().begin_parse();
+
+    return (
+        data~load_msg_addr(), ;; admin address
+        data~load_ref()       ;; pool code
+    );
+}
+
+() save_data(slice admin_addr, cell pool_code) impure inline_ref {
+    cell data = begin_cell()
+                    .store_slice(admin_addr)
+                    .store_ref(pool_code)
+                .end_cell();
+
+    set_data(data);
+}
+
+() recv_internal(cell in_msg_full, slice in_msg_body) impure {
+    var cs = in_msg_full.begin_parse();  
+    var flags = cs~load_uint(4); ;; int_msg_info$0 ihr_disabled:Bool bounce:Bool bounced:Bool
+
+    if (flags & 1) {
+        return (); ;; ignore all bounced messages
+    }
+
+    slice sender_address = cs~load_msg_addr();
+    (_, int sender_address_hash) = parse_std_addr(sender_address);
+
+    throw_if(error::empty_msg_body, in_msg_body.slice_empty?());
+
+    (int op, int query_id) = in_msg_body~load_body_header();
+
+    ;; TODO
+}
+
+(slice) get_pool_address(slice asset_0, slice asset_1) method_id {
+    ;; TODO 
+}
