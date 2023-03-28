@@ -1,0 +1,3 @@
+const op::swap = 0x4a2663c4;
+const op::add_liquidity = 0x406d7624;
+const op::withdraw_liquidity = 0x45675951;
